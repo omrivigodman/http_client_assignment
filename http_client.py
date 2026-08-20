@@ -4,9 +4,13 @@ import os
 import re
 from urllib.parse import urljoin, urlsplit
 
+MAX_HEADER_SIZE = 65536
+SOCKET_TIMEOUT = 5
+
 # חיבור לשרת
 def connect_to_server(host, port):
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket.settimeout(SOCKET_TIMEOUT)
     client_socket.connect((host, port))
     return client_socket
 
@@ -27,14 +31,20 @@ def send_request(client_socket, request):
 # קורא את כותרות התגובה מהשרת
 def read_headers(client_socket):
     data = b""
-    while b"\r\n\r\n" not in data:
-        chunk = client_socket.recv(4096)
-        if not chunk:
-            break
-        data += chunk
 
-    if b"\r\n\r\n" not in data:
-        return None, None
+    while b"\r\n\r\n" not in data:
+        if len(data) >= MAX_HEADER_SIZE:
+            print("HTTP headers are too large")
+            return None, None
+
+        chunk = client_socket.recv(
+            min(4096, MAX_HEADER_SIZE - len(data))
+        )
+
+        if not chunk:
+            return None, None
+
+        data += chunk
 
     header_data, body_start = data.split(b"\r\n\r\n", 1)
 
