@@ -13,12 +13,19 @@ ALLOWED_DIRECTORIES = {"", "css", "pages", "js", "images"}
 # כרגע אנחנו קוראים עד סוף כותרות \r\n\r\n
 def read_http_request(connection):
     data = b""
+    MAX_HEADER_SIZE = 65536
+
     while b"\r\n\r\n" not in data:
+        if len(data) >= MAX_HEADER_SIZE:
+            return b""
+
         chunk = connection.recv(1024)
 
         if not chunk:
             break
+
         data += chunk
+
     return data
 
 # פונקציה שמפרקת את בקשת ה-HTTP
@@ -152,6 +159,7 @@ def build_static_file_response(path):
 # פונקציה שמטפלת בלקוח אחד
 def handle_client(connection, address):
     try:
+        connection.settimeout(5)
         print(f"New connection from {address}")
 
         request = read_http_request(connection)
